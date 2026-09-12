@@ -390,6 +390,13 @@
     letter-spacing: 0.03em;
     color: var(--ink-soft);
   }
+  .la-suggested-tag {
+    text-transform: none;
+    letter-spacing: 0;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 10.5px;
+  }
   .la-form-field input, .la-form-field select, .la-form-field textarea {
     font-family: var(--sans);
     font-size: 13px;
@@ -772,7 +779,11 @@
       body: JSON.stringify({ key, value })
     });
     if (!res.ok) throw new Error('Sheet write failed (' + res.status + ')');
-    return await res.json();
+    const data = await res.json();
+    if (!data || data.ok !== true) {
+      throw new Error('Sheet write failed: ' + (data && data.error ? data.error : 'unknown error'));
+    }
+    return data;
   }
 
   async function loadData(){
@@ -1276,16 +1287,26 @@
     `;
   }
 
+  function suggestedNextIndex(){
+    let maxNum = 0;
+    state.inventory.forEach(r => {
+      const n = parseInt(r.index, 10);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    });
+    return String(maxNum + 1);
+  }
+
   function renderAddForm(){
     const editing = state.editingId ? state.inventory.find(r => r.id === state.editingId) : null;
     const v = field => editing ? esc(editing[field] || '') : '';
+    const indexValue = editing ? esc(editing.index || '') : esc(suggestedNextIndex());
     const cats = getCategories().filter(c => c !== 'All');
     return `
       <div class="la-panel-box">
         <h3>${editing ? 'Edit entry' : 'Add new entry'}</h3>
         <form id="la-add-form" onsubmit="laSubmitForm(event)">
           <div class="la-form-grid">
-            <div class="la-form-field"><label>ID / index</label><input name="index" value="${v('index')}" placeholder="e.g. 335" /></div>
+            <div class="la-form-field"><label>ID / index${!editing ? ' <span class=\"la-suggested-tag\">suggested — feel free to change</span>' : ''}</label><input name="index" value="${indexValue}" placeholder="e.g. 335" /></div>
             <div class="la-form-field"><label>Category</label>
               <input name="category" list="la-cat-list" value="${v('category')}" placeholder="e.g. General" />
               <datalist id="la-cat-list">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
@@ -1331,6 +1352,7 @@
                     <button class="la-btn small" onclick="laMarkReceivedToday(${r.id})">Received today</button>
                     <input type="date" id="la-manual-date-${r.id}" max="${todayISO()}" />
                     <button class="la-btn secondary small" onclick="laMarkReceivedManual(${r.id})">Register this date</button>
+                    <button class="la-btn secondary small" onclick="laStartEdit(${r.id})">Edit details</button>
                   </div>
                 </div>
               `).join('')
