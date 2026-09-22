@@ -1054,9 +1054,10 @@
     'price':'price',
     'storage':'storage', 'storage location':'storage',
     'date ordered':'order_date', 'order date':'order_date', 'ordered':'order_date',
+    'date received':'received_date', 'received date':'received_date', 'received':'received_date', 'date arrived':'received_date',
     'notes':'note', 'note':'note', 'comment':'note', 'comments':'note'
   };
-  const BULK_DEFAULT_POSITIONS = { index:0, category:1, description:2, manufacturer:3, ordering_name:4, supplier:5, supplier_cat_no:6, catalog_no:7, stores_external:8, unit_size:9, price:10, storage:11, order_date:12, note:13 };
+  const BULK_DEFAULT_POSITIONS = { index:0, category:1, description:2, manufacturer:3, ordering_name:4, supplier:5, supplier_cat_no:6, catalog_no:7, stores_external:8, unit_size:9, price:10, storage:11, order_date:12, received_date:13, note:14 };
 
   function detectBulkHeaderMapping(firstRowCols){
     const mapping = {}; let matches = 0;
@@ -1099,6 +1100,7 @@
       const price           = get(cols, 'price');
       const storage          = get(cols, 'storage');
       const orderDate         = get(cols, 'order_date');
+      const receivedDate       = get(cols, 'received_date');
       const note                = get(cols, 'note');
       if (!description) { skipped++; return; }
       let idx = idxRaw;
@@ -1106,7 +1108,7 @@
       const newId = nextId();
       const history = [];
       if (orderDate) {
-        history.push({ ordered_raw: orderDate, ordered_date: orderDate, received_raw: null, received_date: null });
+        history.push({ ordered_raw: orderDate, ordered_date: orderDate, received_raw: receivedDate || null, received_date: receivedDate || null });
       }
       state.inventory.push({
         id: newId,
@@ -1673,9 +1675,9 @@
       <div class="la-panel-box">
         <h3>Bulk add entries</h3>
         <p class="la-bulk-instructions">Paste multiple rows at once — e.g. copy straight from Excel (tab-separated), or use commas. One item per line.</p>
-        <p class="la-bulk-instructions"><strong>Easiest way:</strong> add a header row as the first line naming your columns (any order, any subset) — recognized names: ID, Category, Name, Manufacturer, Ordering name, Supplier, Supplier cat no, Catalogue no, Stores/external, Unit/Size, Price, Storage, Date ordered, Notes. The app matches by name, so your spreadsheet's own column order is fine.</p>
+        <p class="la-bulk-instructions"><strong>Easiest way:</strong> add a header row as the first line naming your columns (any order, any subset) — recognized names: ID, Category, Name, Manufacturer, Ordering name, Supplier, Supplier cat no, Catalogue no, Stores/external, Unit/Size, Price, Storage, Date ordered, Date received, Notes. The app matches by name, so your spreadsheet's own column order is fine.</p>
         <p class="la-bulk-instructions">Without a header row, columns are read in this fixed order instead:</p>
-        <p class="la-bulk-columns">ID · Category · Name · Manufacturer · Ordering name · Supplier · Supplier cat. no. · Catalogue no. · Stores/external · Unit/Size · Price · Storage · Date ordered (YYYY-MM-DD) · Notes</p>
+        <p class="la-bulk-columns">ID · Category · Name · Manufacturer · Ordering name · Supplier · Supplier cat. no. · Catalogue no. · Stores/external · Unit/Size · Price · Storage · Date ordered (YYYY-MM-DD) · Date received (YYYY-MM-DD) · Notes</p>
         <p class="la-bulk-instructions">Only <strong>Name</strong> is required — leave any other column blank if you don't know it. Leave ID blank to auto-number it.</p>
         <textarea id="la-bulk-textarea" rows="6" placeholder="310&#9;Equipment&#9;New microscope slide box&#9;VWR&#9;&#9;&#9;&#9;&#9;&#9;45.00&#9;&#9;&#9;Arrived, needs a shelf spot"></textarea>
         <div class="la-form-actions">
