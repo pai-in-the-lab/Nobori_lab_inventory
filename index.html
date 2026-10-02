@@ -567,6 +567,18 @@
   .la-activity-ts { font-family: var(--mono); color: var(--ink-soft); white-space: nowrap; font-size: 11px; }
 
   .la-admin-search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .la-rename-cat-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .la-rename-cat-row select, .la-rename-cat-row input[type=text] {
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1.3px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper-raised);
+    color: var(--ink);
+  }
+  .la-rename-cat-row input[type=text] { flex: 1 1 180px; }
+  .la-rename-arrow { color: var(--ink-soft); font-size: 14px; }
   .la-admin-search {
     width: 100%;
     font-family: var(--sans);
@@ -692,11 +704,7 @@
     SEED_DATA = JSON.parse(document.getElementById('seed-data').textContent);
   } catch(e) { SEED_DATA = []; }
 
-  const CATEGORY_ORDER = ["PHYTOMap","Arabidopsis nuclei prep","MERFISH","Bacteria infection","csRNASeq","GoldenGate/cloning","Restriction enzymes","MPRA","General","Protein purification / protein works","Histone work","ChIP-Seq","Genotyping","RNase depletion","Microbiome transcriptome","Equipment"];
-  function categoryRank(cat){
-    const i = CATEGORY_ORDER.indexOf(cat || 'General');
-    return i === -1 ? CATEGORY_ORDER.length : i;
-  }
+
 
   let state = {
     loaded: false,
@@ -932,6 +940,32 @@
   };
   window.laSetCategory = function(v){ state.category = v; render(); };
   window.laSetAdminSearch = function(v){ state.adminSearch = v; render(); };
+
+  window.laRenameCategory = async function(){
+    const fromSel = document.getElementById('la-rename-cat-from');
+    const toInput = document.getElementById('la-rename-cat-to');
+    if (!fromSel || !toInput) return;
+    const fromName = fromSel.value;
+    const toName = toInput.value.trim();
+    if (!fromName) { showToast('Pick a category to rename'); return; }
+    if (!toName) { showToast('Enter a new name'); return; }
+    if (toName === fromName) { showToast('That\'s already its name'); return; }
+    let count = 0;
+    state.inventory.forEach(r => {
+      if ((r.category || 'General') === fromName) { r.category = toName; count++; }
+    });
+    if (count === 0) { showToast('No items found in that category'); return; }
+    if (state.expandedCategories.has(fromName)) {
+      state.expandedCategories.delete(fromName);
+      state.expandedCategories.add(toName);
+    }
+    if (state.category === fromName) state.category = toName;
+    logActivity('Renamed category "' + fromName + '" to "' + toName + '" (' + count + ' item' + (count === 1 ? '' : 's') + ')');
+    await persist();
+    toInput.value = '';
+    showToast('Renamed to "' + toName + '" — ' + count + ' item' + (count === 1 ? '' : 's') + ' updated');
+    render();
+  };
   window.laRunAdminSearch = function(){
     const el = document.getElementById('la-admin-search-input');
     laSetAdminSearch(el ? el.value : '');
@@ -1309,9 +1343,8 @@
       if (!buckets[c]) buckets[c] = [];
       buckets[c].push(r);
     });
-    const known = CATEGORY_ORDER.filter(c => buckets[c]);
-    const unknown = Object.keys(buckets).filter(c => !CATEGORY_ORDER.includes(c)).sort();
-    return [...known, ...unknown].map(cat => ({ category: cat, items: buckets[cat] }));
+    const sorted = Object.keys(buckets).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    return sorted.map(cat => ({ category: cat, items: buckets[cat] }));
   }
   function categoryIsExpanded(cat){
     if (state.category !== 'All') return true; // already filtered down to one category
@@ -1688,12 +1721,32 @@
     `;
   }
 
+  function renderRenameCategoryForm(){
+    const cats = getCategories().filter(c => c !== 'All');
+    if (cats.length === 0) return '';
+    return `
+      <div class="la-panel-box">
+        <h3>Rename a category</h3>
+        <p class="la-bulk-instructions">Updates every item in that category at once. Typing the name of a category that already exists merges the two together.</p>
+        <div class="la-rename-cat-row">
+          <select id="la-rename-cat-from">
+            ${cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+          </select>
+          <span class="la-rename-arrow">→</span>
+          <input type="text" id="la-rename-cat-to" placeholder="New category name" />
+          <button class="la-btn" onclick="laRenameCategory()">Rename</button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderAdminView(){
     return `
       <div class="la-admin-stack">
         ${renderWaitingAdmin()}
         ${renderAddForm()}
         ${renderBulkAddForm()}
+        ${renderRenameCategoryForm()}
         ${renderAdminTable()}
         ${renderActivity()}
       </div>
